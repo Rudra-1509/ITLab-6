@@ -15,6 +15,6 @@
       "@/*": ["./apps/api/src/*"]
     }
   },
-  "include": ["apps/api/src/**/*", "packages/database/src/**/*", "apps/api/tests/**/*"],
+  "include": ["apps/api/src/**/*", "packages/database/src/**/*", "packages/database/prisma/**/*", "apps/api/tests/**/*"],
   "exclude": ["node_modules", "dist"]
 }

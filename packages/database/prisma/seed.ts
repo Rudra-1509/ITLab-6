@@ -45,7 +45,7 @@ async function main() {
     throw new Error('Seed refused: set NODE_ENV=development and use a localhost database named department_management.');
   }
 
-  const password = process.env.DEMO_SEED_PASSWORD ?? 'LocalDev@1234';
+  const password = process.env.DEMO_SEED_PASSWORD ?? 'Password@123';
   const passwordHash = await hash(password);
   const department = await prisma.department.upsert({
     where: { code: 'CSE' },
@@ -114,7 +114,37 @@ async function main() {
     }
   }
 
-  const users = [
+  type AdminSeedUser = {
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: 'DEPARTMENT_ADMIN';
+  };
+
+  type FacultySeedUser = {
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: 'HOD' | 'FACULTY';
+    employeeId: string;
+    designation: string;
+    specialization: string;
+  };
+
+  type StudentSeedUser = {
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: 'STUDENT';
+    rollNumber: string;
+    program: StudentProgram;
+    batchYear: number;
+    semester: number;
+  };
+
+  type SeedUser = AdminSeedUser | FacultySeedUser | StudentSeedUser;
+
+  const users: SeedUser[] = [
     { email: 'admin.cse@university.edu', firstName: 'Department', lastName: 'Administrator', role: Role.DEPARTMENT_ADMIN },
     { email: 'hod.cse@university.edu', firstName: 'Rajesh', lastName: 'Mukherjee', role: Role.HOD, employeeId: 'EMP-HOD-01', designation: 'Professor and Head', specialization: 'Distributed systems' },
     { email: 'prof.sharma@university.edu', firstName: 'Vikram', lastName: 'Sharma', role: Role.FACULTY, employeeId: 'EMP-FAC-01', designation: 'Associate Professor', specialization: 'Artificial intelligence' },
@@ -132,14 +162,13 @@ async function main() {
       create: { email: seedUser.email, firstName: seedUser.firstName, lastName: seedUser.lastName, role: seedUser.role, status: UserStatus.ACTIVE, departmentId: department.id, passwordHash },
     });
     userRecords.set(seedUser.email, user);
-    if ('employeeId' in seedUser) {
+    if (seedUser.role === 'HOD' || seedUser.role === 'FACULTY') {
       await prisma.facultyProfile.upsert({
         where: { userId: user.id },
         update: { employeeId: seedUser.employeeId, designation: seedUser.designation, specialization: seedUser.specialization, departmentId: department.id, status: FacultyStatus.ACTIVE },
         create: { userId: user.id, employeeId: seedUser.employeeId, designation: seedUser.designation, specialization: seedUser.specialization, departmentId: department.id },
       });
-    }
-    if ('rollNumber' in seedUser) {
+    } else if (seedUser.role === 'STUDENT') {
       const academicProgram = seedUser.program === StudentProgram.UG ? programUg : programPg;
       await prisma.studentProfile.upsert({
         where: { userId: user.id },
@@ -151,8 +180,8 @@ async function main() {
   const userId = (email: string) => userRecords.get(email)!.id;
 
   const proposalData = [
-    { id: ids.proposalOne, title: 'Accessible campus navigation assistant', description: 'Build a mobile-friendly indoor navigation prototype for campus buildings.', supervisorId: userId('prof.sharma@university.edu'), capacity: 2, eligibility: ProposalEligibility.BOTH },
-    { id: ids.proposalTwo, title: 'Privacy-preserving academic credentials', description: 'Prototype verifiable credentials for sharing academic achievements.', supervisorId: userId('dr.patel@university.edu'), capacity: 1, eligibility: ProposalEligibility.PG },
+    { id: ids.proposalOne, title: 'Accessible campus navigation assistant', description: 'Build a mobile-friendly indoor navigation prototype for campus buildings.', supervisorId: userId('prof.sharma@university.edu'), capacity: 2, ugPgEligibility: ProposalEligibility.BOTH },
+    { id: ids.proposalTwo, title: 'Privacy-preserving academic credentials', description: 'Prototype verifiable credentials for sharing academic achievements.', supervisorId: userId('dr.patel@university.edu'), capacity: 1, ugPgEligibility: ProposalEligibility.PG },
   ];
   for (const proposal of proposalData) {
     await prisma.projectProposal.upsert({

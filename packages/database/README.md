@@ -13,7 +13,7 @@ The database package owns `prisma/schema.prisma`, migrations, and the developmen
 
 `npm run db:push` remains available for disposable prototyping only; it does not create migration history and should not be used to deploy schema changes. Never run `migrate dev`, `db push`, or a reset against a shared or production database. The committed `.env.example` contains placeholders only.
 
-The seed refuses to run unless `NODE_ENV=development` and `DATABASE_URL` points to localhost/127.0.0.1 with a database name containing `department_management`. It upserts a fixed development dataset and does not clear unrelated data. Its documented demo password defaults to `LocalDev@1234`; override it with `DEMO_SEED_PASSWORD` for local work. Never use these credentials outside a disposable development database.
+The seed refuses to run unless `NODE_ENV=development` and `DATABASE_URL` points to localhost/127.0.0.1 with a database name containing `department_management`. It upserts a fixed development dataset and does not clear unrelated data. Its documented demo password defaults to `Password@123`; override it with `DEMO_SEED_PASSWORD` for local work. Never use these credentials outside a disposable development database.
 
 ## Entity Relationship Diagram
 

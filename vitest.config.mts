@@ -1,5 +1,8 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const currentDir = import.meta.dirname ?? path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   test: {
@@ -11,8 +14,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@dms/database': path.resolve(__dirname, './packages/database/src/index.ts'),
-      '@': path.resolve(__dirname, './apps/api/src'),
+      '@dms/database': path.resolve(currentDir, './packages/database/src/index.ts'),
+      '@': path.resolve(currentDir, './apps/api/src'),
     },
   },
 });
