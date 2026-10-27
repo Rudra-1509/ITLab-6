@@ -1,0 +1,336 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  STUDENT
+  FACULTY
+  HOD
+  DEPARTMENT_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum StudentProgram {
+  UG
+  PG
+}
+
+enum StudentStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  GRADUATED
+}
+
+enum FacultyStatus {
+  ACTIVE
+  ON_LEAVE
+  RETIRED
+}
+
+enum RequestCategory {
+  COURSE_REGISTRATION
+  BONAFIDE_CERTIFICATE
+  LEAVE_OF_ABSENCE
+  LAB_ACCESS
+  PROJECT_APPROVAL
+  SPECIAL_PERMISSION
+}
+
+enum RequestStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
+  CANCELLED
+}
+
+enum WorkflowStage {
+  FACULTY_REVIEW
+  HOD_REVIEW
+  FINAL_DECISION
+}
+
+enum WorkflowAction {
+  SUBMIT
+  APPROVE_STAGE
+  REJECT
+  REQUEST_CHANGES
+  RESUBMIT
+  CANCEL
+  OVERRIDE_APPROVE
+}
+
+enum ProposalEligibility {
+  UG
+  PG
+  BOTH
+}
+
+enum ProposalStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum AllocationStatus {
+  ACTIVE
+  REASSIGNED
+  CANCELLED
+}
+
+enum NotificationType {
+  REQUEST_SUBMITTED
+  APPROVAL_PENDING
+  REQUEST_APPROVED
+  REQUEST_REJECTED
+  CHANGES_REQUESTED
+  REQUEST_RESUBMITTED
+  PROJECT_PUBLISHED
+  PROJECT_ALLOCATED
+  PROJECT_REASSIGNED
+  PROJECT_CANCELLED
+}
+
+model Department {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  proposals   ProjectProposal[]
+  requests    DepartmentalRequest[]
+
+  @@map("departments")
+}
+
+model User {
+  id           String      @id @default(uuid())
+  email        String      @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         Role
+  status       UserStatus  @default(ACTIVE)
+  departmentId String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+
+  studentProfile StudentProfile?
+  facultyProfile FacultyProfile?
+
+  requestsInitiated    DepartmentalRequest[]    @relation("Requester")
+  requestsReviewed     DepartmentalRequest[]    @relation("TargetReviewer")
+  workflowDecisions    RequestWorkflowHistory[] @relation("ActorDecisions")
+  proposalsCreated     ProjectProposal[]        @relation("FacultySupervisor")
+  projectPreferences   ProjectPreference[]      @relation("StudentPreferences")
+  studentAllocations   ProjectAllocation[]      @relation("AllocatedStudent")
+  allocationsMade      ProjectAllocation[]      @relation("AllocatingAdmin")
+  notifications        Notification[]           @relation("UserNotifications")
+  auditActions         AuditLog[]               @relation("ActorAuditLogs")
+
+  @@index([role, status])
+  @@index([departmentId])
+  @@map("users")
+}
+
+model StudentProfile {
+  id             String         @id @default(uuid())
+  userId         String         @unique
+  rollNumber     String         @unique
+  program        StudentProgram
+  batchYear      Int
+  currentSemester Int
+  cgpa           Float?
+  status         StudentStatus  @default(ACTIVE)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([program, batchYear])
+  @@map("student_profiles")
+}
+
+model FacultyProfile {
+  id                 String        @id @default(uuid())
+  userId             String        @unique
+  employeeId         String        @unique
+  designation        String
+  maxProjectCapacity Int           @default(5)
+  specialization     String?
+  status             FacultyStatus @default(ACTIVE)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("faculty_profiles")
+}
+
+model DepartmentalRequest {
+  id               String          @id @default(uuid())
+  requesterId      String
+  departmentId     String
+  category         RequestCategory
+  title            String
+  description      String
+  academicContext  Json            @default("{}")
+  currentStatus    RequestStatus   @default(DRAFT)
+  currentStage     WorkflowStage?
+  targetReviewerId String?
+  priority         String          @default("NORMAL")
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  requester        User            @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade)
+  department       Department      @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  targetReviewer   User?           @relation("TargetReviewer", fields: [targetReviewerId], references: [id], onDelete: SetNull)
+
+  workflowHistory  RequestWorkflowHistory[]
+
+  @@index([requesterId, currentStatus])
+  @@index([departmentId, currentStatus])
+  @@index([currentStage, currentStatus])
+  @@map("departmental_requests")
+}
+
+model RequestWorkflowHistory {
+  id              String          @id @default(uuid())
+  requestId       String
+  actorId         String
+  action          WorkflowAction
+  stage           WorkflowStage?
+  previousStatus  RequestStatus
+  resultingStatus RequestStatus
+  comments        String?
+  rejectionReason String?
+  metadata        Json            @default("{}")
+  createdAt       DateTime        @default(now())
+
+  request         DepartmentalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  actor           User                @relation("ActorDecisions", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([requestId, createdAt])
+  @@map("request_workflow_history")
+}
+
+model ProjectProposal {
+  id                  String              @id @default(uuid())
+  title               String
+  description         String
+  supervisorId        String
+  departmentId        String
+  academicTerm        String
+  ugPgEligibility     ProposalEligibility @default(BOTH)
+  capacity            Int                 @default(2)
+  prerequisites       String?
+  applicationDeadline DateTime?
+  status              ProposalStatus      @default(DRAFT)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  supervisor          User                @relation("FacultySupervisor", fields: [supervisorId], references: [id], onDelete: Restrict)
+  department          Department          @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+
+  preferences         ProjectPreference[]
+  allocations         ProjectAllocation[]
+
+  @@index([departmentId, status])
+  @@index([supervisorId, academicTerm])
+  @@map("project_proposals")
+}
+
+model ProjectPreference {
+  id           String          @id @default(uuid())
+  studentId    String
+  proposalId   String
+  rank         Int
+  academicTerm String
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  student      User            @relation("StudentPreferences", fields: [studentId], references: [id], onDelete: Cascade)
+  proposal     ProjectProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, proposalId, academicTerm])
+  @@unique([studentId, rank, academicTerm])
+  @@map("project_preferences")
+}
+
+model ProjectAllocation {
+  id                 String           @id @default(uuid())
+  proposalId         String
+  studentId          String
+  allocatedById      String
+  academicTerm       String
+  status             AllocationStatus @default(ACTIVE)
+  allocatedAt        DateTime         @default(now())
+  cancelledAt        DateTime?
+  cancellationReason String?
+  reassignedFromId   String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  proposal           ProjectProposal  @relation(fields: [proposalId], references: [id], onDelete: Restrict)
+  student            User             @relation("AllocatedStudent", fields: [studentId], references: [id], onDelete: Restrict)
+  allocatedBy        User             @relation("AllocatingAdmin", fields: [allocatedById], references: [id], onDelete: Restrict)
+
+  @@index([proposalId, status])
+  @@index([studentId, academicTerm, status])
+  @@map("project_allocations")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  type      NotificationType
+  isRead    Boolean          @default(false)
+  linkUrl   String?
+  createdAt DateTime         @default(now())
+
+  user      User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String
+  beforeState Json?
+  afterState  Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  actor      User?    @relation("ActorAuditLogs", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

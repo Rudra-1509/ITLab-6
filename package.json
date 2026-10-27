@@ -1,0 +1,59 @@
+{
+  "name": "department-management-system",
+  "version": "1.0.0",
+  "description": "University Departmental Management System Backend and Database",
+  "main": "dist/apps/api/src/server.js",
+  "scripts": {
+    "dev": "tsx watch apps/api/src/server.ts",
+    "build": "tsc",
+    "start": "node dist/apps/api/src/server.js",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "db:push": "prisma db push --schema=packages/database/prisma/schema.prisma",
+    "db:generate": "prisma generate --schema=packages/database/prisma/schema.prisma",
+    "db:seed": "tsx packages/database/prisma/seed.ts"
+  },
+  "keywords": [
+    "university",
+    "department-management",
+    "express",
+    "typescript",
+    "prisma",
+    "postgresql",
+    "workflow-engine"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@node-rs/argon2": "^2.0.2",
+    "@prisma/client": "^5.22.0",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "swagger-ui-express": "^5.0.1",
+    "yamljs": "^0.3.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.8",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.8",
+    "@types/morgan": "^1.9.9",
+    "@types/node": "^22.10.2",
+    "@types/supertest": "^6.0.2",
+    "@types/swagger-ui-express": "^4.1.7",
+    "@types/yamljs": "^0.2.34",
+    "prisma": "^5.22.0",
+    "supertest": "^7.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

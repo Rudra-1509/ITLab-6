@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "outDir": "./dist",
+    "paths": {
+      "@dms/database": ["./packages/database/src/index.ts"],
+      "@/*": ["./apps/api/src/*"]
+    }
+  },
+  "include": ["apps/api/src/**/*", "packages/database/src/**/*", "apps/api/tests/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

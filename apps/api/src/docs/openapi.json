@@ -1,0 +1,350 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "University Departmental Management System API",
+    "version": "1.0.0",
+    "description": "Comprehensive REST API for university departmental administration, managing UG/PG students, faculty, multi-stage approval workflows, project proposals, transactional allocation, notifications, and academic reports."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:4000/api/v1",
+      "description": "Local Development Server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Standard JWT authentication header: Bearer <token>"
+      },
+      "CookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "access_token",
+        "description": "Secure HTTP-only browser session cookie"
+      }
+    },
+    "schemas": {
+      "ApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "data": { "type": "object" },
+          "meta": { "type": "object" }
+        },
+        "required": ["success", "data"]
+      },
+      "ApiError": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string", "example": "BAD_REQUEST" },
+              "message": { "type": "string", "example": "Validation failed" },
+              "details": { "type": "object" }
+            },
+            "required": ["code", "message"]
+          }
+        },
+        "required": ["success", "error"]
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "student.rahul@university.edu" },
+          "password": { "type": "string", "example": "Password@123" }
+        }
+      },
+      "CreateRequestPayload": {
+        "type": "object",
+        "required": ["category", "title", "description"],
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "COURSE_REGISTRATION",
+              "BONAFIDE_CERTIFICATE",
+              "LEAVE_OF_ABSENCE",
+              "LAB_ACCESS",
+              "PROJECT_APPROVAL",
+              "SPECIAL_PERMISSION"
+            ]
+          },
+          "title": { "type": "string", "example": "Request for Cloud Lab Access" },
+          "description": { "type": "string", "example": "Need access to the high-performance computing cluster for thesis simulations." },
+          "academicContext": { "type": "object", "example": { "semester": 7, "labName": "Distributed Systems Lab" } },
+          "priority": { "type": "string", "enum": ["LOW", "NORMAL", "HIGH", "URGENT"], "default": "NORMAL" },
+          "targetReviewerId": { "type": "string", "format": "uuid" }
+        }
+      },
+      "ApproveRequestPayload": {
+        "type": "object",
+        "properties": {
+          "comments": { "type": "string", "example": "Approved. Lab credentials will be issued." }
+        }
+      },
+      "RejectRequestPayload": {
+        "type": "object",
+        "required": ["rejectionReason"],
+        "properties": {
+          "rejectionReason": { "type": "string", "example": "Incomplete course prerequisites for this laboratory." },
+          "comments": { "type": "string" }
+        }
+      },
+      "RequestChangesPayload": {
+        "type": "object",
+        "required": ["comments"],
+        "properties": {
+          "comments": { "type": "string", "example": "Please attach your course registration slip for verification." }
+        }
+      },
+      "CreateProposalPayload": {
+        "type": "object",
+        "required": ["title", "description", "academicTerm"],
+        "properties": {
+          "title": { "type": "string", "example": "Autonomous Drone Trajectory Planning using Deep RL" },
+          "description": { "type": "string", "example": "Investigate real-time obstacle avoidance algorithms for quadcopters." },
+          "academicTerm": { "type": "string", "example": "2024-AUTUMN" },
+          "ugPgEligibility": { "type": "string", "enum": ["UG", "PG", "BOTH"], "default": "BOTH" },
+          "capacity": { "type": "integer", "minimum": 1, "maximum": 20, "default": 2 },
+          "prerequisites": { "type": "string", "example": "Proficiency in Python and PyTorch" },
+          "applicationDeadline": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateAllocationPayload": {
+        "type": "object",
+        "required": ["proposalId", "studentId", "academicTerm"],
+        "properties": {
+          "proposalId": { "type": "string", "format": "uuid" },
+          "studentId": { "type": "string", "format": "uuid" },
+          "academicTerm": { "type": "string", "example": "2024-AUTUMN" }
+        }
+      }
+    }
+  },
+  "security": [
+    { "BearerAuth": [] },
+    { "CookieAuth": [] }
+  ],
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "summary": "User Login",
+        "description": "Authenticates user with email and password, returning a JWT token and setting an HTTP-only session cookie.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Login successful", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiResponse" } } } },
+          "401": { "description": "Invalid credentials", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "summary": "User Logout",
+        "description": "Clears HTTP-only session cookie and invalidates client session.",
+        "responses": {
+          "200": { "description": "Logged out successfully" }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "summary": "Get Current Session User",
+        "description": "Retrieves the authenticated user's profile and roles.",
+        "responses": {
+          "200": { "description": "Active session profile returned" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/requests": {
+      "get": {
+        "summary": "List Departmental Requests",
+        "description": "List departmental requests visible to the authenticated user with filtering, sorting, and pagination.",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } },
+          { "name": "category", "in": "query", "schema": { "type": "string" } },
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "search", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "List of requests" }
+        }
+      },
+      "post": {
+        "summary": "Create Draft Request",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateRequestPayload" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Draft request created successfully" }
+        }
+      }
+    },
+    "/requests/{id}/submit": {
+      "post": {
+        "summary": "Submit Request",
+        "description": "Transitions a draft request to UNDER_REVIEW at the first workflow review stage.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Request submitted into workflow" }
+        }
+      }
+    },
+    "/requests/{id}/approve": {
+      "post": {
+        "summary": "Approve Request Stage",
+        "description": "Approves the current stage of the request, advancing it to the next stage or marking it fully APPROVED.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ApproveRequestPayload" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Stage approved" },
+          "403": { "description": "Forbidden - actor lacks role authority for this stage" }
+        }
+      }
+    },
+    "/requests/{id}/reject": {
+      "post": {
+        "summary": "Reject Request",
+        "description": "Rejects the request with a mandatory rejection reason.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RejectRequestPayload" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Request rejected" }
+        }
+      }
+    },
+    "/requests/{id}/request-changes": {
+      "post": {
+        "summary": "Request Changes on Request",
+        "description": "Sends request back to requester with specific revision comments.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RequestChangesPayload" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Changes requested" }
+        }
+      }
+    },
+    "/approvals/pending": {
+      "get": {
+        "summary": "Get Pending Approvals",
+        "description": "Returns all requests awaiting action by the authenticated reviewer or HOD.",
+        "responses": {
+          "200": { "description": "Pending requests returned" }
+        }
+      }
+    },
+    "/projects": {
+      "get": {
+        "summary": "List Project Proposals",
+        "description": "Browse project proposals (published only for students; draft/published/archived for staff).",
+        "responses": {
+          "200": { "description": "List of proposals" }
+        }
+      },
+      "post": {
+        "summary": "Create Project Proposal",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateProposalPayload" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Proposal created" }
+        }
+      }
+    },
+    "/allocations": {
+      "get": {
+        "summary": "List Project Allocations",
+        "responses": {
+          "200": { "description": "List of allocations" }
+        }
+      },
+      "post": {
+        "summary": "Allocate Student to Project",
+        "description": "Atomically allocates an eligible student to a project proposal enforcing capacity limits and program compatibility.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateAllocationPayload" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Allocation successful" },
+          "409": { "description": "Conflict - capacity exceeded or student already allocated" }
+        }
+      }
+    },
+    "/reports/requests": {
+      "get": {
+        "summary": "Departmental Request Reports",
+        "description": "Aggregated request metrics by status, category, and stage.",
+        "responses": {
+          "200": { "description": "Report data" }
+        }
+      }
+    },
+    "/reports/allocations": {
+      "get": {
+        "summary": "Project Allocation & Supervision Report",
+        "description": "Capacity utilization and faculty supervision workload analytics.",
+        "responses": {
+          "200": { "description": "Allocation metrics" }
+        }
+      }
+    }
+  }
+}
